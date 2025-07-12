@@ -31,7 +31,7 @@ const loginForm = () => {
     try {
       await signInWithGoogle();
       alert("Signed in with Google successfully!");
-      router.push("/users/" + user.displayName);
+      router.push("/profile/" + user.displayName);
     } catch (error) {
       console.error("Google sign-in error:", error.message);
       alert("Google sign-in failed: " + error.message);

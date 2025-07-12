@@ -1,18 +1,19 @@
-"use client"
+"use client";
 
-import { Menu, X } from "lucide-react"
-import Link from "next/link"
-import { useState } from "react"
-import Image from "next/image"
+import { Menu, X } from "lucide-react";
+import Link from "next/link";
+import { useState } from "react";
+import Image from "next/image";
 
 export default function Navbar() {
-  const [isOpen, setIsOpen] = useState(false)
+  const [isOpen, setIsOpen] = useState(false);
 
   const navigationItems = [
     { name: "Home", href: "/" },
     { name: "About", href: "/about" },
     { name: "FAQs", href: "/faqs" },
-  ]
+    { name: "Profile", href: "/profile" },
+  ];
 
   return (
     <header className="w-full bg-[#062626]">
@@ -22,9 +23,7 @@ export default function Navbar() {
           <div className="flex-shrink-0">
             <Link href="/" className="flex items-center">
               <Image src="/logo.png" alt="Logo" width={80} height={80} />
-              
             </Link>
-
           </div>
 
           {/* Desktop Navigation */}
@@ -55,7 +54,11 @@ export default function Navbar() {
               onClick={() => setIsOpen(!isOpen)}
               className="text-white hover:bg-white/10 p-2 rounded-md transition-colors duration-200"
             >
-              {isOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
+              {isOpen ? (
+                <X className="h-6 w-6" />
+              ) : (
+                <Menu className="h-6 w-6" />
+              )}
               <span className="sr-only">Toggle menu</span>
             </button>
           </div>
@@ -65,9 +68,6 @@ export default function Navbar() {
         {isOpen && (
           <div className="md:hidden">
             <div className="px-2 pt-2 pb-3 space-y-1 border-t border-white/10">
-             
-
-
               {/* Mobile Navigation Links */}
               {navigationItems.map((item) => (
                 <Link
@@ -96,5 +96,5 @@ export default function Navbar() {
         )}
       </div>
     </header>
-  )
+  );
 }

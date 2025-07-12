@@ -79,6 +79,13 @@
   --sidebar-accent-foreground: oklch(0.205 0 0);
   --sidebar-border: oklch(0.922 0 0);
   --sidebar-ring: oklch(0.708 0 0);
+  --kupals-bg: #0c1e1e;
+  --kupals-glass: rgba(10, 42, 42, 0.65);
+  --kupals-blur: blur(20px);
+  --kupals-border: rgba(255, 255, 255, 0.1);
+  --kupals-teal: #158080;
+  --kupals-text: #c0f0f0;
+  --kupals-accent: #7fe0e0;
 }
 
 .dark {
@@ -122,4 +129,96 @@
   body {
     @apply bg-background text-foreground;
   }
+}
+body {
+  background-color: var(--kupals-bg);
+  color: var(--kupals-text);
+  font-family: "Inter", sans-serif;
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+}
+
+a {
+  color: var(--kupals-accent);
+  transition: color 0.3s ease;
+}
+a:hover {
+  color: #adebeb;
+}
+
+/* Glass container utility (reusable) */
+.glass-card {
+  background: var(--kupals-glass);
+  backdrop-filter: var(--kupals-blur);
+  -webkit-backdrop-filter: var(--kupals-blur);
+  border: 1px solid var(--kupals-border);
+  border-radius: 1.5rem;
+  box-shadow: 0 0 30px rgba(21, 128, 128, 0.3);
+  padding: 2rem;
+}
+
+/* Section header (e.g., Welcome Back!) */
+.section-title {
+  font-size: 2.5rem;
+  font-weight: 800;
+  text-align: center;
+  color: var(--kupals-accent);
+  text-shadow: 0 0 12px rgba(21, 128, 128, 0.6);
+  margin-bottom: 2rem;
+}
+
+/* Buttons */
+.button-primary {
+  background-color: var(--kupals-teal);
+  color: white;
+  font-weight: 600;
+  padding: 0.5rem 1.25rem;
+  border-radius: 0.75rem;
+  box-shadow: 0 4px 12px rgba(21, 128, 128, 0.5);
+  transition: background-color 0.3s ease;
+}
+.button-primary:hover {
+  background-color: #1fa3a3;
+}
+
+.button-glass {
+  background-color: rgba(255, 255, 255, 0.05);
+  border: 1px solid var(--kupals-border);
+  color: var(--kupals-accent);
+  font-weight: 500;
+  padding: 0.5rem 1.25rem;
+  border-radius: 0.75rem;
+  backdrop-filter: blur(12px);
+  transition: all 0.3s ease;
+}
+.button-glass:hover {
+  background-color: rgba(255, 255, 255, 0.1);
+  color: white;
+}
+
+/* Input fields */
+.input-dark {
+  background-color: rgba(255, 255, 255, 0.03);
+  border: 1px solid var(--kupals-border);
+  padding: 0.6rem 1rem;
+  border-radius: 0.75rem;
+  color: white;
+  width: 100%;
+  transition: border-color 0.2s ease;
+}
+.input-dark:focus {
+  outline: none;
+  border-color: var(--kupals-accent);
+  background-color: rgba(255, 255, 255, 0.05);
+}
+
+.glass-profile {
+  background: linear-gradient(
+    145deg,
+    rgba(10, 42, 42, 0.6),
+    rgba(6, 54, 54, 0.5)
+  );
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
 }

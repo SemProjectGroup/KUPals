@@ -3,8 +3,9 @@
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import styles from "./detailedProfile.module.css";
+import Link from "next/link";
 
-export default function DetailedProfilePage() {
+export default function DetailedProfilePage({ userTrue }) {
   const router = useRouter();
 
   const user = {
@@ -30,14 +31,14 @@ export default function DetailedProfilePage() {
           Praful
         </span>
       </h1>
-
-      <button
-        onClick={() => router.back()}
-        className="mb-10 px-5 py-2 rounded-lg bg-[#104d4d]/70 hover:bg-[#158080] transition-all font-semibold shadow-md"
-      >
-        ← Back
-      </button>
-
+      <Link href="/editProfile">
+        <button
+          // onClick={() => router.back()}
+          className="mb-10 px-5 py-2 rounded-lg bg-[#104d4d]/70 hover:bg-[#158080] transition-all font-semibold shadow-md"
+        >
+          ← Edit Profile
+        </button>
+      </Link>
       <div className={`${styles.card} w-full max-w-5xl p-8 md:p-12`}>
         <div className="flex flex-col md:flex-row gap-10 items-center md:items-start">
           <div className="flex-shrink-0">
