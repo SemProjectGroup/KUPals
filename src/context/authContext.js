@@ -9,8 +9,19 @@ import {
   GoogleAuthProvider,
   signInWithPopup,
 } from "firebase/auth";
-import { doc, setDoc, getDoc, updateDoc } from "firebase/firestore";
+import {
+  doc,
+  setDoc,
+  getDoc,
+  updateDoc,
+  collection,
+  addDoc,
+  query,
+  orderBy,
+  onSnapshot,
+} from "firebase/firestore";
 import { auth, db, storage } from "@/utils/firebase";
+
 export const AuthContext = createContext();
 
 export const AuthProvider = ({ children }) => {
