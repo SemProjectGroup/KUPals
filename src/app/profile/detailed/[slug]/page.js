@@ -1,9 +1,8 @@
 import React from "react";
+import DetailedProfileView from "@/components/profile/detailedProfile";
 
-import DetailedProfile from "@/components/profile/detailedProfile";
-
-const page = () => {
-  return <DetailedProfile />;
+const ProfileDetailedPage = () => {
+  return <DetailedProfileView />;
 };
 
-export default page;
+export default ProfileDetailedPage;

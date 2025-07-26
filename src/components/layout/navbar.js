@@ -2,17 +2,21 @@
 
 import { Menu, X } from "lucide-react";
 import Link from "next/link";
-import { useState } from "react";
+import { useState, useContext } from "react";
 import Image from "next/image";
+import { AuthContext } from "@/context/authContext";
+import { useRouter } from "next/navigation";
 
 export default function Navbar() {
+  const { user, loading } = useContext(AuthContext);
+  const router = useRouter();
   const [isOpen, setIsOpen] = useState(false);
 
   const navigationItems = [
     { name: "Home", href: "/" },
     { name: "About", href: "/about" },
     { name: "FAQs", href: "/faqs" },
-    { name: "Profile", href: "/profile" },
+    { name: "Profile", href: "/profile" + (user ? `/${user.uid}` : "") },
   ];
 
   return (

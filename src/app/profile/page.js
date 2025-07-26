@@ -6,7 +6,6 @@ import { Link } from "lucide-react";
 const page = () => {
   return (
     <>
-      <Link href="/">Back to Home</Link>
       <DetailedProfile />
     </>
   );

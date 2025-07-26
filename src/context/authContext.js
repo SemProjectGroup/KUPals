@@ -10,32 +10,28 @@ import {
   signInWithPopup,
 } from "firebase/auth";
 import { doc, setDoc, getDoc, updateDoc } from "firebase/firestore";
-// import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { auth, db, storage } from "@/utils/firebase";
 export const AuthContext = createContext();
 
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [profile, setProfile] = useState(null); // State for current user's profile
+  const [profile, setProfile] = useState(null);
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
       setUser(firebaseUser);
       if (firebaseUser) {
-        // Fetch current user's profile if user is logged in
-        const userProfile = await _fetchUserProfile(firebaseUser.uid); // Use internal fetch
+        const userProfile = await _fetchUserProfile(firebaseUser.uid);
         setProfile(userProfile);
       } else {
-        setProfile(null); // Clear profile if logged out
+        setProfile(null);
       }
       setLoading(false);
     });
     return () => unsubscribe();
   }, []);
 
-  // --- Internal Firestore Profile Fetch Function ---
-  // Renamed to _fetchUserProfile to distinguish from the public getUserProfile
   const _fetchUserProfile = async (uid) => {
     if (!uid) return null;
     const userDocRef = doc(db, "users", uid);
@@ -48,7 +44,6 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
-  // Function to create/set user profile in Firestore
   const setUserProfile = async (uid, data) => {
     const userDocRef = doc(db, "users", uid);
     await setDoc(
@@ -56,24 +51,18 @@ export const AuthProvider = ({ children }) => {
       { ...data, lastUpdated: new Date() },
       { merge: true }
     );
-    // After updating, refetch the current user's profile to keep context in sync
     if (user && user.uid === uid) {
-      // Only update if it's the current user's profile
       setProfile(await _fetchUserProfile(uid));
     }
   };
 
-  // Function to upload avatar to Firebase Storage
   const uploadAvatar = async (uid, file) => {
     if (!uid || !file) return null;
-
     const avatarRef = ref(storage, `avatars/${uid}/${file.name}`);
     const snapshot = await uploadBytes(avatarRef, file);
     const downloadURL = await getDownloadURL(snapshot.ref);
     return downloadURL;
   };
-
-  // --- Authentication Functions (Modified) ---
 
   const signUp = async (email, password, firstName, lastName) => {
     try {
@@ -92,6 +81,8 @@ export const AuthProvider = ({ children }) => {
         hobbies: [],
         groups: [],
         socials: {},
+        department: "",
+        semester: "",
         createdAt: new Date(),
       });
 
@@ -111,7 +102,7 @@ export const AuthProvider = ({ children }) => {
       const result = await signInWithPopup(auth, provider);
       const user = result.user;
 
-      const existingProfile = await _fetchUserProfile(user.uid); // Use internal fetch
+      const existingProfile = await _fetchUserProfile(user.uid);
       if (!existingProfile) {
         await setUserProfile(user.uid, {
           firstName: user.displayName ? user.displayName.split(" ")[0] : "",
@@ -124,6 +115,8 @@ export const AuthProvider = ({ children }) => {
           hobbies: [],
           groups: [],
           socials: {},
+          department: "",
+          semester: "",
           createdAt: new Date(),
         });
       }
@@ -138,17 +131,63 @@ export const AuthProvider = ({ children }) => {
     return signOut(auth);
   };
 
+  const sendMessage = async (messageText) => {
+    if (!user || !messageText.trim()) {
+      console.warn("Cannot send empty message or if not authenticated.");
+      return;
+    }
+
+    try {
+      await addDoc(collection(db, "universal_messages"), {
+        uid: user.uid,
+        userName: profile
+          ? `${profile.firstName} ${profile.lastName}`.trim()
+          : user.email,
+        userAvatar: profile ? profile.avatarUrl : null,
+        text: messageText,
+        createdAt: new Date(),
+      });
+    } catch (error) {
+      console.error("Error sending message:", error);
+      throw new Error("Failed to send message.");
+    }
+  };
+
+  const getUniversalMessages = (callback) => {
+    const messagesRef = collection(db, "universal_messages");
+
+    const q = query(messagesRef, orderBy("createdAt", "asc"));
+
+    const unsubscribe = onSnapshot(
+      q,
+      (snapshot) => {
+        const messages = snapshot.docs.map((doc) => ({
+          id: doc.id,
+          ...doc.data(),
+        }));
+        callback(messages);
+      },
+      (error) => {
+        console.error("Error listening to messages:", error);
+      }
+    );
+
+    return unsubscribe;
+  };
+
   const contextValue = {
     user,
     loading,
-    profile, // Current user's profile
+    profile,
     signUp,
     signIn,
     signInWithGoogle,
     logout,
     updateUserProfile: setUserProfile,
     uploadAvatar,
-    getUserProfile: _fetchUserProfile, // Expose the function to fetch ANY user profile
+    getUserProfile: _fetchUserProfile,
+    sendMessage,
+    getUniversalMessages,
   };
 
   return (
