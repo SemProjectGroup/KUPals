@@ -20,5 +20,5 @@ export default {
       },
     },
   },
-  plugins: [animatePlugin],
+  plugins: { tailwindcss: {}, autoprefixer: {} },
 };
