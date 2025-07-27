@@ -1,10 +1,7 @@
 import React from "react";
 
-import Image from "next/image";
-import bg from "../../../public/bg.png";
 import Button from "../ui/button";
 import Link from "next/link";
-import Logo from "../../../public/logo.png";
 
 const LeftColumn = () => {
   return (
@@ -20,7 +17,6 @@ const LeftColumn = () => {
       <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/30 to-transparent z-10 rounded-t-2xl md:rounded-l-2xl md:rounded-tr-none"></div>
 
       <div className="relative z-20 flex justify-between items-start w-full">
-        <Image src={Logo} width={90} />
         <Link href="/">
           <Button className="py-2 px-6 bg-[#2ACAA8] text-white text-sm font-medium rounded-full hover:bg-[#23A891] transition duration-300 ease-in-out shadow-md">
             Back to website
