@@ -1,5 +1,4 @@
 /** @type {import('next').NextConfig} */
-import withSharp from "next-sharp";
 
 webpack: (config) => ({
   ...config,
@@ -17,4 +16,4 @@ const nextConfig = {
   },
 };
 
-export default withSharp(nextConfig);
+export default nextConfig;
