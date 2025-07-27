@@ -1,8 +1,10 @@
 /** @type {import('next').NextConfig} */
-const nextConfig = withSharp({
+import withSharp from "next-sharp";
+
+const nextConfig = {
   images: {
     remotePatterns: [new URL("https://lh3.googleusercontent.com/**")],
   },
-});
+};
 
-export default nextConfig;
+export default withSharp(nextConfig);
