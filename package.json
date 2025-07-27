@@ -18,6 +18,8 @@
     "gsap": "^3.13.0",
     "lucide-react": "^0.525.0",
     "next": "^15.3.2",
+    "node-addon-api": "^8.5.0",
+    "node-gyp": "^11.2.0",
     "ogl": "^1.0.11",
     "postprocessing": "^6.37.4",
     "react": "^19.1.0",
