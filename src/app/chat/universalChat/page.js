@@ -1,4 +1,3 @@
-// components/UniversalChat.jsx
 "use client";
 
 import { useState, useEffect, useContext, useRef } from "react";

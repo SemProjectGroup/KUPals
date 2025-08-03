@@ -1,12 +1,11 @@
-// Praful Bhatt roll 61
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useContext } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { initializeApp, getApps, getApp } from "firebase/app";
-import { getAuth, onAuthStateChanged } from "firebase/auth";
+import { getAuth } from "firebase/auth";
 import {
   getFirestore,
   collection,
@@ -16,88 +15,88 @@ import {
   doc,
   getDoc,
 } from "firebase/firestore";
+import { AuthContext } from "@/context/authContext";
+
+function createAvatarPlaceholder(name) {
+  const initial = name ? name.charAt(0).toUpperCase() : "U";
+  const bgColor = "#3CE6BD";
+  const textColor = "#FFFFFF";
+  const svgContent = `<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100" viewBox="0 0 100 100"><rect width="100" height="100" fill="${bgColor}"/><text x="50%" y="50%" dominant-baseline="middle" text-anchor="middle" font-size="50" font-family="Arial, sans-serif" fill="${textColor}">${initial}</text></svg>`;
+  const encodedSvg = encodeURIComponent(svgContent);
+  return `data:image/svg+xml,${encodedSvg}`;
+}
 
 export default function GroupChat() {
-  const { groupId } = useParams();
+  const groupId = useParams().gruopId;
+  const { user, profile, loading: authLoading } = useContext(AuthContext);
 
   const [messages, setMessages] = useState([]);
   const [newMessage, setNewMessage] = useState("");
   const [groupName, setGroupName] = useState("Loading Group...");
   const [isSending, setIsSending] = useState(false);
   const [loading, setLoading] = useState(true);
-  const [userId, setUserId] = useState(null);
-  const [userName, setUserName] = useState("Anonymous");
   const messagesEndRef = useRef(null);
 
   const firebaseConfig = JSON.parse(
     typeof __firebase_config !== "undefined" ? __firebase_config : "{}"
   );
   const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
-  const auth = getAuth(app);
   const db = getFirestore(app);
   const appId = typeof __app_id !== "undefined" ? __app_id : "default-app-id";
 
   useEffect(() => {
-    // This listener handles both authentication state and data fetching.
-    // It ensures we have a valid user ID before attempting Firestore operations.
-    const unsubscribeAuth = onAuthStateChanged(auth, (user) => {
-      if (user && groupId) {
-        setUserId(user.uid);
-        setUserName(user.displayName || "Anonymous User");
+    if (authLoading) {
+      return;
+    }
 
-        // Fetch group details
-        const groupDocRef = doc(
-          db,
-          `artifacts/${appId}/public/data/groups`,
-          groupId
-        );
-        getDoc(groupDocRef)
-          .then((groupSnap) => {
-            if (groupSnap.exists()) {
-              setGroupName(groupSnap.data().name);
-            } else {
-              setGroupName("Group Not Found");
-            }
-          })
-          .catch((error) => {
-            console.error("Error fetching group details:", error);
-            setGroupName("Error Loading Group");
-          });
+    if (!user) {
+      setLoading(false);
+      return;
+    }
 
-        // Set up real-time listener for messages
-        const chatCollectionRef = collection(
-          db,
-          `artifacts/${appId}/public/data/groups/${groupId}/chats`
-        );
-        const unsubscribeMessages = onSnapshot(
-          chatCollectionRef,
-          (snapshot) => {
-            const fetchedMessages = snapshot.docs.map((doc) => ({
-              id: doc.id,
-              ...doc.data(),
-              createdAt: doc.data().createdAt?.toDate
-                ? doc.data().createdAt.toDate().toISOString()
-                : null,
-            }));
-            fetchedMessages.sort(
-              (a, b) => new Date(a.createdAt) - new Date(b.createdAt)
-            );
-            setMessages(fetchedMessages);
-            setLoading(false);
+    if (groupId) {
+      const groupDocRef = doc(
+        db,
+        `artifacts/${appId}/public/data/groups`,
+        groupId
+      );
+      getDoc(groupDocRef)
+        .then((groupSnap) => {
+          if (groupSnap.exists()) {
+            setGroupName(groupSnap.data().name);
+          } else {
+            setGroupName("Group Not Found");
           }
+        })
+        .catch((error) => {
+          console.error("Error fetching group details:", error);
+          setGroupName("Error Loading Group");
+        });
+
+      const chatCollectionRef = collection(
+        db,
+        `artifacts/${appId}/public/data/groups/${groupId}/chats`
+      );
+      const unsubscribeMessages = onSnapshot(chatCollectionRef, (snapshot) => {
+        const fetchedMessages = snapshot.docs.map((doc) => ({
+          id: doc.id,
+          ...doc.data(),
+          createdAt: doc.data().createdAt?.toDate
+            ? doc.data().createdAt.toDate().toISOString()
+            : null,
+        }));
+        fetchedMessages.sort(
+          (a, b) => new Date(a.createdAt) - new Date(b.createdAt)
         );
-
-        // Return a cleanup function that unsubscribes the messages listener
-        return () => unsubscribeMessages();
-      } else {
-        setUserId(null);
+        setMessages(fetchedMessages);
         setLoading(false);
-      }
-    });
+      });
 
-    // This cleanup function unsubscribes the auth listener when the component unmounts
-    return () => unsubscribeAuth();
-  }, [auth, db, groupId, appId]);
+      return () => unsubscribeMessages();
+    } else {
+      setLoading(false);
+    }
+  }, [authLoading, user, db, groupId, appId]);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -105,7 +104,7 @@ export default function GroupChat() {
 
   const handleSendMessage = async (e) => {
     e.preventDefault();
-    if (!userId || !newMessage.trim() || isSending) {
+    if (!user || !newMessage.trim() || isSending) {
       return;
     }
 
@@ -118,9 +117,12 @@ export default function GroupChat() {
       await addDoc(chatCollectionRef, {
         text: newMessage,
         createdAt: serverTimestamp(),
-        userId: userId,
-        userName: userName,
-        userAvatar: "https://placehold.co/100x100/3CE6BD/ffffff?text=U",
+        userId: user.uid,
+        userName: profile
+          ? `${profile.firstName} ${profile.lastName}`.trim()
+          : "Anonymous",
+        userAvatar:
+          profile?.avatarUrl || createAvatarPlaceholder(profile?.firstName),
       });
       setNewMessage("");
     } catch (error) {
@@ -130,7 +132,7 @@ export default function GroupChat() {
     }
   };
 
-  if (loading || !groupId) {
+  if (authLoading || loading || !groupId) {
     return (
       <div className="min-h-screen bg-[#1A1A1A] flex items-center justify-center text-white">
         <p>Loading chat...</p>
@@ -138,7 +140,7 @@ export default function GroupChat() {
     );
   }
 
-  if (!userId) {
+  if (!user) {
     return (
       <div className="min-h-screen bg-[#1A1A1A] flex flex-col items-center justify-center text-white p-4">
         <p className="text-xl mb-4">
@@ -173,21 +175,26 @@ export default function GroupChat() {
               <div
                 key={msg.id}
                 className={`flex items-start gap-3 ${
-                  msg.userId === userId ? "justify-end" : ""
+                  msg.userId === user.uid ? "justify-end" : ""
                 }`}
               >
-                {msg.userId !== userId && (
+                {msg.userId !== user.uid && (
                   <Link href={`/profile/detailed/${msg.userId}`}>
                     <div className="relative w-8 h-8 rounded-full overflow-hidden flex-shrink-0 cursor-pointer">
-                      <Image
-                        src={msg.userAvatar || "/placeholder-avatar.png"}
+                      <img
+                        src={
+                          msg.userAvatar ||
+                          createAvatarPlaceholder(msg.userName)
+                        }
                         alt="Avatar"
-                        width={32}
-                        height={32}
-                        objectFit="cover"
+                        style={{
+                          objectFit: "cover",
+                          width: "100%",
+                          height: "100%",
+                        }}
                         className="rounded-full"
                         onError={(e) => {
-                          e.target.src = "/placeholder-avatar.png";
+                          e.target.src = createAvatarPlaceholder(msg.userName);
                         }}
                       />
                     </div>
@@ -195,13 +202,15 @@ export default function GroupChat() {
                 )}
                 <div
                   className={`flex flex-col ${
-                    msg.userId === userId ? "items-end" : "items-start"
+                    msg.userId === user.uid ? "items-end" : "items-start"
                   }`}
                 >
                   <Link href={`/profile/detailed/${msg.userId}`}>
                     <span
                       className={`text-sm font-semibold ${
-                        msg.userId === userId ? "text-[#2ACAA8]" : "text-white"
+                        msg.userId === user.uid
+                          ? "text-[#2ACAA8]"
+                          : "text-white"
                       } cursor-pointer hover:underline`}
                     >
                       {msg.userName || "Anonymous"}
@@ -209,12 +218,14 @@ export default function GroupChat() {
                   </Link>
                   <div
                     className={`p-3 rounded-xl max-w-[75%] ${
-                      msg.userId === userId
+                      msg.userId === user.uid
                         ? "bg-[#2ACAA8] text-white rounded-br-none"
                         : "bg-[#354240] text-white rounded-bl-none"
                     }`}
                   >
-                    <p className="text-sm break-words">{msg.text}</p>
+                    <p className="text-sm break-all whitespace-pre-wrap">
+                      {msg.text}
+                    </p>
                   </div>
                   <span className="text-xs text-gray-500 mt-1">
                     {msg.createdAt
@@ -225,18 +236,25 @@ export default function GroupChat() {
                       : "Sending..."}
                   </span>
                 </div>
-                {msg.userId === userId && (
+                {msg.userId === user.uid && (
                   <Link href={`/profile/detailed/${msg.userId}`}>
                     <div className="relative w-8 h-8 rounded-full overflow-hidden flex-shrink-0 cursor-pointer">
-                      <Image
-                        src={msg.userAvatar || "/placeholder-avatar.png"}
+                      <img
+                        src={
+                          profile?.avatarUrl ||
+                          createAvatarPlaceholder(profile?.firstName)
+                        }
                         alt="Avatar"
-                        width={32}
-                        height={32}
-                        objectFit="cover"
+                        style={{
+                          objectFit: "cover",
+                          width: "100%",
+                          height: "100%",
+                        }}
                         className="rounded-full"
                         onError={(e) => {
-                          e.target.src = "/placeholder-avatar.png";
+                          e.target.src = createAvatarPlaceholder(
+                            profile?.firstName
+                          );
                         }}
                       />
                     </div>
