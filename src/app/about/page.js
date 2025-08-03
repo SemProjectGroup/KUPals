@@ -2,6 +2,8 @@
 
 import Link from "next/link";
 import { useState } from "react";
+import Image from "next/image";
+import praful from "@/../public/image.png";
 
 export default function AboutUsPage() {
   const creators = [
@@ -124,11 +126,22 @@ export default function AboutUsPage() {
                 key={index}
                 className="bg-[#354240]/60 p-6 rounded-xl shadow-md border border-[#455553]/50 backdrop-blur-sm text-center"
               >
-                <div className="w-24 h-24 bg-[#2ACAA8]/20 rounded-full mx-auto mb-4 flex items-center justify-center text-xl font-bold text-[#2ACAA8] border border-[#2ACAA8]/50">
-                  {name
-                    .split(" ")
-                    .map((n) => n[0])
-                    .join("")}
+                <div className="w-24 h-24 mx-auto mb-4 rounded-full bg-[#2ACAA8]/20 border border-[#2ACAA8]/50 overflow-hidden relative flex items-center justify-center">
+                  {name === "Praful Bhatt" ? (
+                    <Image
+                      src={praful}
+                      alt="praful"
+                      fill
+                      className="object-cover"
+                    />
+                  ) : (
+                    <span className="text-xl font-bold text-[#2ACAA8]">
+                      {name
+                        .split(" ")
+                        .map((n) => n[0])
+                        .join("")}
+                    </span>
+                  )}
                 </div>
                 <h3 className="text-xl font-semibold text-white">{name}</h3>
                 <p className="text-gray-400 text-sm">
