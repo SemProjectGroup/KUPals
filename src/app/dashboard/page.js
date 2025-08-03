@@ -1,243 +1,339 @@
-import React from "react";
+"use client";
+
+import React, { useState, useEffect } from "react";
 import Link from "next/link";
+import { initializeApp, getApps, getApp } from "firebase/app";
+import {
+  getAuth,
+  signInWithCustomToken,
+  onAuthStateChanged,
+} from "firebase/auth";
+import {
+  getFirestore,
+  collection,
+  query,
+  onSnapshot,
+} from "firebase/firestore";
 
 const KUPalsDashboard = () => {
-  const userName = "TchuTcu";
-  const userId = "kupals-user-id-1234567890abcdef";
+  const [userName, setUserName] = useState("Guest");
+  const [userId, setUserId] = useState(null);
+  const [myGroups, setMyGroups] = useState([]);
+  const [recentChats, setRecentChats] = useState([]);
+  const [notifications, setNotifications] = useState([]);
+  const [isAuthReady, setIsAuthReady] = useState(false);
 
-  const myGroups = [
-    { id: "g1", name: "Hiking Enthusiasts", type: "Public" },
-    { id: "g2", name: "COMP 206 Study Group", type: "Private" },
-    { id: "g3", name: "Dhamakader project group", type: "Public" },
-  ];
+  const showAlert = (message) => {
+    alert(message);
+  };
 
-  const recentChats = [
-    { senderId: "userA", message: "hi everyone" },
-    { senderId: "userB", message: "blabla blala" },
-    { senderId: "userC", message: "blah blah blah ablh" },
-  ];
+  const firebaseConfig = JSON.parse(
+    typeof __firebase_config !== "undefined" ? __firebase_config : "{}"
+  );
+  const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
+  const auth = getAuth(app);
+  const db = getFirestore(app);
+  const appId = typeof __app_id !== "undefined" ? __app_id : "default-app-id";
 
-  const notifications = [
-    {
-      id: "n1",
-      title: "New Event: Annual Tech Fest",
-      message:
-        "fafa afdafa adsfa sfd asf af asfa sfaf safaf dasfasfdasfasfasf das",
-      timestamp: new Date(),
-    },
-    {
-      id: "n2",
-      title: "Group Update: Hiking Trip Confirmed",
-      message: "dasfasfdasfasfasf ghfdafa adsfa sfd asf af rteger.",
-      timestamp: new Date(),
-    },
-    {
-      id: "n3",
-      title: "New Message from Suman Shrestha",
-      message: "fdafa adsfa sfd asf af ilsfdafa adsfa sfd asf af .",
-      timestamp: new Date(),
-    },
-  ];
+  useEffect(() => {
+    const initializeAuth = async () => {
+      try {
+        if (typeof __initial_auth_token !== "undefined") {
+          await signInWithCustomToken(auth, __initial_auth_token);
+        }
+      } catch (error) {
+        console.error("Firebase Auth Error:", error);
+      }
+    };
+    initializeAuth();
+
+    const unsubscribeAuth = onAuthStateChanged(auth, (user) => {
+      if (user) {
+        setUserName(user.displayName || user.email || "User");
+        setUserId(user.uid);
+        setIsAuthReady(true);
+      } else {
+        setUserName("Guest");
+        setUserId(null);
+        setIsAuthReady(true);
+        setMyGroups([]);
+        setRecentChats([]);
+        setNotifications([]);
+      }
+    });
+
+    return () => unsubscribeAuth();
+  }, [auth]);
+
+  useEffect(() => {
+    if (!isAuthReady || !userId) {
+      return;
+    }
+
+    const unsubscribeGroups = onSnapshot(
+      query(collection(db, `artifacts/${appId}/users/${userId}/groups`)),
+      (snapshot) => {
+        const groupsData = snapshot.docs.map((doc) => ({
+          id: doc.id,
+          ...doc.data(),
+        }));
+        setMyGroups(groupsData);
+      },
+      (error) => {
+        console.error("Error fetching groups:", error);
+        showAlert("Failed to load groups.");
+      }
+    );
+
+    const unsubscribeChats = onSnapshot(
+      query(collection(db, `artifacts/${appId}/users/${userId}/chats`)),
+      (snapshot) => {
+        const chatsData = snapshot.docs.map((doc) => ({
+          id: doc.id,
+          ...doc.data(),
+        }));
+        setRecentChats(chatsData);
+      },
+      (error) => {
+        console.error("Error fetching chats:", error);
+        showAlert("Failed to load chats.");
+      }
+    );
+
+    const unsubscribeNotifications = onSnapshot(
+      query(collection(db, `artifacts/${appId}/users/${userId}/notifications`)),
+      (snapshot) => {
+        const notificationsData = snapshot.docs.map((doc) => ({
+          id: doc.id,
+          ...doc.data(),
+        }));
+        setNotifications(notificationsData);
+      },
+      (error) => {
+        console.error("Error fetching notifications:", error);
+        showAlert("Failed to load notifications.");
+      }
+    );
+
+    return () => {
+      unsubscribeGroups();
+      unsubscribeChats();
+      unsubscribeNotifications();
+    };
+  }, [isAuthReady, userId, db, appId]);
 
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col font-sans antialiased">
-      <nav className="bg-white shadow-sm p-4 flex items-center justify-between sticky top-0 z-10">
+    <div className="min-h-screen bg-[#121212] flex flex-col font-sans antialiased">
+      <nav className="bg-[#1E1E1E] shadow-sm p-4 flex items-center justify-between sticky top-0 z-10">
         <div className="flex items-center">
-          <span className="text-xl font-bold text-[#158080]">KUPals</span>
+          <span className="text-xl font-bold text-[#2DE1C8]">KUPals</span>
         </div>
         <div className="flex items-center space-x-4">
-          <span className="text-gray-700">Welcome, {userName}!</span>
+          <span className="text-gray-300">Welcome, {userName}!</span>
         </div>
       </nav>
 
-      {/* Main Content Area place */}
       <div className="flex flex-1 overflow-hidden">
-        <aside className="w-64 bg-white shadow-md p-4 flex flex-col space-y-4 border-r border-gray-200">
+        <aside className="w-64 bg-[#1E1E1E] shadow-md p-4 flex flex-col space-y-4 border-r border-[#2C2C2C]">
           <nav className="space-y-2">
             <Link
               href="dashboard"
-              className="block px-3 py-2 bg-gray-100 text-[#158080] font-semibold rounded-md transition duration-150 ease-in-out"
+              className="block px-3 py-2 bg-[#2C2C2C] text-[#2DE1C8] font-semibold rounded-md transition duration-150 ease-in-out"
             >
               Dashboard
             </Link>
             <Link
               href="group"
-              className="block px-3 py-2 text-gray-700 hover:bg-gray-100 rounded-md transition duration-150 ease-in-out"
+              className="block px-3 py-2 text-gray-300 hover:bg-[#2C2C2C] rounded-md transition duration-150 ease-in-out"
             >
               Groups
             </Link>
             <Link
               href="chat"
-              className="block px-3 py-2 text-gray-700 hover:bg-gray-100 rounded-md transition duration-150 ease-in-out"
+              className="block px-3 py-2 text-gray-300 hover:bg-[#2C2C2C] rounded-md transition duration-150 ease-in-out"
             >
               Chat
             </Link>
             <Link
               href="profile"
-              className="block px-3 py-2 text-gray-700 hover:bg-gray-100 rounded-md transition duration-150 ease-in-out"
+              className="block px-3 py-2 text-gray-300 hover:bg-[#2C2C2C] rounded-md transition duration-150 ease-in-out"
             >
               Profile
             </Link>
             <Link
               href="settings"
-              className="block px-3 py-2 text-gray-700 hover:bg-gray-100 rounded-md transition duration-150 ease-in-out"
+              className="block px-3 py-2 text-gray-300 hover:bg-[#2C2C2C] rounded-md transition duration-150 ease-in-out"
             >
               Settings
             </Link>
           </nav>
           {userId && (
-            <div className="mt-auto p-3 bg-gray-100 rounded-lg text-sm text-gray-600 break-words">
+            <div className="mt-auto p-3 bg-[#2C2C2C] rounded-lg text-sm text-gray-400 break-words">
               User ID: <br />{" "}
               <span className="font-mono text-xs">{userId}</span>
             </div>
           )}
         </aside>
 
-        <main className="flex-1 p-6 overflow-y-auto bg-gray-50">
-          <h1 className="text-3xl font-bold text-gray-800 mb-6">
-            Your KUPals Dashboard
+        <main className="flex-1 p-6 overflow-y-auto bg-[#121212]">
+          <h1 className="text-3xl font-bold text-gray-200 mb-8">
+            Dashboard Overview
           </h1>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
-            <div className="bg-white rounded-lg shadow p-6 border border-gray-200">
-              <h2 className="text-xl font-semibold text-gray-700 mb-2">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+            <div className="bg-[#1E1E1E] rounded-lg shadow-xl p-6 border border-[#2C2C2C] transform hover:scale-105 transition-transform duration-300">
+              <h2 className="text-xl font-semibold text-gray-300 mb-2">
                 My Groups
               </h2>
-              <p className="text-gray-900 text-3xl font-bold">
+              <p className="text-gray-100 text-4xl font-bold">
                 {myGroups.length}
               </p>
             </div>
-            <div className="bg-white rounded-lg shadow p-6 border border-gray-200">
-              <h2 className="text-xl font-semibold text-gray-700 mb-2">
+            <div className="bg-[#1E1E1E] rounded-lg shadow-xl p-6 border border-[#2C2C2C] transform hover:scale-105 transition-transform duration-300">
+              <h2 className="text-xl font-semibold text-gray-300 mb-2">
                 Unread Chats
               </h2>
-              <p className="text-gray-900 text-3xl font-bold">
+              <p className="text-gray-100 text-4xl font-bold">
                 {recentChats.length}
               </p>
-              <p className="text-gray-500">New messages in your chats</p>
             </div>
-            <div className="bg-white rounded-lg shadow p-6 border border-gray-200">
-              <h2 className="text-xl font-semibold text-gray-700 mb-2">
+            <div className="bg-[#1E1E1E] rounded-lg shadow-xl p-6 border border-[#2C2C2C] transform hover:scale-105 transition-transform duration-300">
+              <h2 className="text-xl font-semibold text-gray-300 mb-2">
                 Notifications
               </h2>
-              <p className="text-gray-900 text-3xl font-bold">
+              <p className="text-gray-100 text-4xl font-bold">
                 {notifications.length}
               </p>
             </div>
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <div className="bg-white rounded-lg shadow p-6 border border-gray-200">
-              <h2 className="text-2xl font-semibold text-gray-800 mb-4">
-                My Groups
-              </h2>
+            <div className="bg-[#1E1E1E] rounded-lg shadow-xl p-6 border border-[#2C2C2C]">
+              <div className="flex justify-between items-center mb-4">
+                <h2 className="text-2xl font-semibold text-gray-200">
+                  My Groups
+                </h2>
+                <button className="text-sm px-4 py-2 bg-[#2C2C2C] text-[#2DE1C8] rounded-md hover:bg-gray-600 transition">
+                  Create Group
+                </button>
+              </div>
               {myGroups.length > 0 ? (
-                <ul className="space-y-3">
+                <ul className="space-y-4">
                   {myGroups.map((group) => (
                     <li
                       key={group.id}
-                      className="flex items-center space-x-3 p-3 bg-gray-50 rounded-md hover:bg-gray-100 transition duration-150"
+                      className="flex items-center space-x-4 p-4 bg-[#2C2C2C] rounded-lg hover:bg-[#2C2C2C]/75 transition-colors duration-200 cursor-pointer"
                     >
-                      <div className="w-8 h-8 bg-[#158080] text-white flex items-center justify-center rounded-full text-sm font-bold">
+                      <div className="w-10 h-10 bg-[#2DE1C8] text-[#131C28] flex items-center justify-center rounded-full text-lg font-bold flex-shrink-0">
                         {group.name ? group.name.charAt(0).toUpperCase() : "G"}
                       </div>
-                      <span className="text-gray-800 font-medium">
-                        {group.name || `Group ${group.id.substring(0, 5)}`}
-                      </span>
-                      <span className="text-gray-500 text-sm ml-auto">
+                      <div className="flex-grow">
+                        <p className="text-gray-200 font-medium text-lg">
+                          {group.name || `Group ${group.id.substring(0, 5)}`}
+                        </p>
+                        <p className="text-gray-400 text-sm">
+                          {group.description || "No description provided."}
+                        </p>
+                      </div>
+                      <span className="text-gray-500 text-sm">
                         ({group.type || "Public"})
                       </span>
                     </li>
                   ))}
-                  <li className="text-center pt-2">
-                    <button className="text-[#158080] hover:underline">
-                      View All Groups
-                    </button>
-                  </li>
                 </ul>
               ) : (
-                <p className="text-gray-500">
+                <p className="text-gray-500 text-center py-4">
                   No groups found. Start by creating or joining one!
                 </p>
               )}
             </div>
 
-            <div className="bg-white rounded-lg shadow p-6 border border-gray-200">
-              <h2 className="text-2xl font-semibold text-gray-800 mb-4">
-                Recent Chats
-              </h2>
+            <div className="bg-[#1E1E1E] rounded-lg shadow-xl p-6 border border-[#2C2C2C]">
+              <div className="flex justify-between items-center mb-4">
+                <h2 className="text-2xl font-semibold text-gray-200">
+                  Recent Chats
+                </h2>
+                <button className="text-sm px-4 py-2 bg-[#2C2C2C] text-[#2DE1C8] rounded-md hover:bg-gray-600 transition">
+                  New Chat
+                </button>
+              </div>
               {recentChats.length > 0 ? (
-                <ul className="space-y-3">
-                  {recentChats.map((chat, index) => (
+                <ul className="space-y-4">
+                  {recentChats.map((chat) => (
                     <li
-                      key={index}
-                      className="p-3 bg-gray-50 rounded-md hover:bg-gray-100 transition duration-150"
+                      key={chat.id}
+                      className="p-4 bg-[#2C2C2C] rounded-lg hover:bg-[#2C2C2C]/75 transition-colors duration-200 cursor-pointer"
                     >
-                      <div className="flex items-center space-x-3">
-                        <div className="w-8 h-8 bg-blue-500 text-white flex items-center justify-center rounded-full text-sm font-bold">
+                      <div className="flex items-center space-x-4">
+                        <div className="w-10 h-10 bg-[#2DE1C8] text-[#131C28] flex items-center justify-center rounded-full text-lg font-bold flex-shrink-0">
                           {chat.senderId
                             ? chat.senderId.charAt(0).toUpperCase()
                             : "U"}
                         </div>
-                        <span className="font-medium text-gray-800">
-                          {chat.senderId
-                            ? `User ${chat.senderId.substring(0, 8)}`
-                            : "Unknown User"}
-                        </span>
+                        <div className="flex-grow">
+                          <p className="font-medium text-gray-200 text-lg">
+                            {chat.senderId
+                              ? `User ${chat.senderId.substring(0, 8)}`
+                              : "Unknown User"}
+                          </p>
+                          <p className="text-gray-400 text-sm mt-1 truncate">
+                            {chat.message}
+                          </p>
+                        </div>
                       </div>
-                      <p className="text-gray-600 text-sm mt-1 truncate">
-                        {chat.message}
-                      </p>
-                      <button className="text-xs text-[#158080] hover:underline mt-1">
-                        Reply
-                      </button>
+                      <span className="text-xs text-gray-500 block mt-2">
+                        {chat.timestamp
+                          ? new Date(
+                              chat.timestamp.seconds * 1000
+                            ).toLocaleString()
+                          : "Just now"}
+                      </span>
                     </li>
                   ))}
-                  <li className="text-center pt-2">
-                    <button className="text-[#158080] hover:underline">
-                      View All Chats
-                    </button>
-                  </li>
                 </ul>
               ) : (
-                <p className="text-gray-500">
+                <p className="text-gray-500 text-center py-4">
                   No recent chats. Start a conversation!
                 </p>
               )}
             </div>
 
-            <div className="bg-white rounded-lg shadow p-6 border border-gray-200 lg:col-span-2">
-              <h2 className="text-2xl font-semibold text-gray-800 mb-4">
-                Notifications
-              </h2>
+            <div className="bg-[#1E1E1E] rounded-lg shadow-xl p-6 border border-[#2C2C2C] lg:col-span-2">
+              <div className="flex justify-between items-center mb-4">
+                <h2 className="text-2xl font-semibold text-gray-200">
+                  Notifications
+                </h2>
+                <button className="text-sm px-4 py-2 bg-[#2C2C2C] text-[#2DE1C8] rounded-md hover:bg-gray-600 transition">
+                  Mark all as read
+                </button>
+              </div>
               {notifications.length > 0 ? (
-                <ul className="space-y-3">
-                  {notifications.map((notification, index) => (
+                <ul className="space-y-4">
+                  {notifications.map((notification) => (
                     <li
-                      key={index}
-                      className="p-3 bg-gray-50 rounded-md hover:bg-gray-100 transition duration-150"
+                      key={notification.id}
+                      className="p-4 bg-[#2C2C2C] rounded-lg hover:bg-[#2C2C2C]/75 transition-colors duration-200 cursor-pointer"
                     >
-                      <p className="font-medium text-gray-800">
+                      <p className="font-medium text-gray-200">
                         {notification.title || "New Notification"}
                       </p>
-                      <p className="text-gray-600 text-sm">
+                      <p className="text-gray-400 text-sm mt-1">
                         {notification.message || "You have a new update."}
                       </p>
                       {notification.timestamp && (
-                        <span className="text-xs text-gray-400">
-                          {notification.timestamp.toLocaleString()}
+                        <span className="text-xs text-gray-500 block mt-2">
+                          {new Date(
+                            notification.timestamp.seconds * 1000
+                          ).toLocaleString()}
                         </span>
                       )}
                     </li>
                   ))}
-                  <li className="text-center pt-2">
-                    <button className="text-[#158080] hover:underline">
-                      View All Notifications
-                    </button>
-                  </li>
                 </ul>
               ) : (
-                <p className="text-gray-500">No new notifications.</p>
+                <p className="text-gray-500 text-center py-4">
+                  No new notifications.
+                </p>
               )}
             </div>
           </div>
