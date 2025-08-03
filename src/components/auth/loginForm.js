@@ -1,5 +1,4 @@
 import React from "react";
-import Input from "../ui/input";
 import Button from "../ui/button";
 import GoogleSvg from "./googleSvg";
 import { useRouter } from "next/navigation";
@@ -13,51 +12,64 @@ const loginForm = () => {
   const router = useRouter();
 
   const [showPassword, setShowPassword] = useState(false);
-
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
 
-  const { user, loading, signUp, signIn, signInWithGoogle, logout } =
-    useContext(AuthContext);
+  const { user, loading, signIn, signInWithGoogle } = useContext(AuthContext);
 
-  console.log(user);
-
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    console.log("Account creation form submitted!");
+
+    if (!email || !password) {
+      alert("Please enter both email and password.");
+      return;
+    }
+
+    try {
+      await signIn(email, password);
+      alert("Signed in successfully!");
+      router.push("/profile");
+    } catch (error) {
+      console.error("Email/Password sign-in error:", error.message);
+      alert("Login failed: " + error.message);
+    }
   };
 
   const handleGoogleSignIn = async () => {
     try {
       await signInWithGoogle();
       alert("Signed in with Google successfully!");
-      router.push("/profile/" + user.displayName);
+      router.push("/profile");
     } catch (error) {
       console.error("Google sign-in error:", error.message);
       alert("Google sign-in failed: " + error.message);
     }
   };
+
   return (
     <>
       <form onSubmit={handleSubmit} className="space-y-8">
-        {/* <div className="flex flex-col sm:flex-row gap-4">
-          <div className="flex-1">
-            <Input type="text" id="firstName" placeholder="First Name" />
-          </div>
-          <div className="flex-1">
-            <Input type="text" id="lastName" placeholder="Last Name" />
-          </div>
-        </div> */}
-
         <div>
-          <Input type="email" id="email" placeholder="Email" />
+          <input
+            type="email"
+            id="email"
+            placeholder="Email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            className="w-full p-4 bg-[#354240] border border-[#455553] rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#3CE6BD] shadow-sm transition duration-200"
+            required
+          />
         </div>
 
         <div className="relative">
-          <Input
+          <input
             type={showPassword ? "text" : "password"}
             id="password"
             placeholder="Enter your password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            className="w-full p-4 pr-12 bg-[#354240] border border-[#455553] rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#3CE6BD] shadow-sm transition duration-200"
+            required
           />
           <button
             type="button"
@@ -72,22 +84,7 @@ const loginForm = () => {
           </button>
         </div>
 
-        <div className="flex items-center">
-          <input
-            type="checkbox"
-            id="terms"
-            className="h-4 w-4 text-[#2ACAA8] bg-[#354240] border-[#455553] rounded focus:ring-[#3CE6BD] transition duration-200"
-            required
-          />
-          <label htmlFor="terms" className="ml-2 block text-sm text-gray-400">
-            I agree to the{" "}
-            <a href="#" className="text-[#2ACAA8] hover:underline">
-              Terms & Conditions
-            </a>
-          </label>
-        </div>
-
-        <Button type="submit">Create account</Button>
+        <Button type="submit">Log In</Button>
       </form>
       <div className="relative my-8">
         <div className="absolute inset-0 flex items-center">
@@ -95,7 +92,7 @@ const loginForm = () => {
         </div>
         <div className="relative flex justify-center text-sm">
           <span className="bg-[#252F2D] px-2 text-gray-400">
-            Or register with
+            Or sign in with
           </span>
         </div>
       </div>

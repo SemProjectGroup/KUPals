@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import LoginForm from "./loginForm";
+import RegisterForm from "./registerForm";
 import LeftColumn from "./leftColumn";
 export default function CreateAccountPage() {
   console.log("hi");
@@ -22,7 +23,7 @@ export default function CreateAccountPage() {
             </Link>
           </p>
 
-          <LoginForm />
+          <RegisterForm />
         </div>
       </div>
     </div>
