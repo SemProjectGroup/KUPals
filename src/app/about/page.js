@@ -64,7 +64,7 @@ export default function AboutUsPage() {
             Born from the vibrant student community of Kathmandu University,
             KUPals was envisioned by a group of passionate students who saw a
             need for a centralized hub. We realized that while KU fosters
-            incredible talent and diverse interests, there wasn't a single,
+            incredible talent and diverse interests, there wasnt a single,
             intuitive platform to bring everyone together, streamline academic
             tasks, and truly nurture connections beyond the classroom.
           </p>
