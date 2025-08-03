@@ -1,114 +1,439 @@
-import React from 'react';
-import Link from 'next/link'
+"use client";
+import React, { useState, useEffect } from "react";
+import Link from "next/link";
+import { initializeApp, getApps, getApp } from "firebase/app";
+import {
+  getAuth,
+  signInWithCustomToken,
+  onAuthStateChanged,
+} from "firebase/auth";
+import {
+  getFirestore,
+  collection,
+  query,
+  onSnapshot,
+  addDoc,
+  doc,
+  getDoc,
+  setDoc,
+  serverTimestamp,
+  getDocs,
+} from "firebase/firestore";
 
 const KUPalsGroupsPage = () => {
-  const publicGroups = [
-    { id: 'p1', name: 'Hiking Enthusiasts of KU', members: 120, description: 'Explore trails around Kathmandu Valley!' },
-    { id: 'p2', name: 'KU Music ', members: 85, description: 'Connect with fellow musicians and jam!' },
-    { id: 'p3', name: 'Photography Club KU', members: 150, description: 'fadsfa ad fasdf afa fasfafa asf' },
-    { id: 'p4', name: 'fdsafsdafds fads as', members: 210, description: 'fdasfasf asdf adsfadsfasfasfs' },
-    { id: 'p5', name: ' fdafa fdas fdas', members: 75, description: 'fsadfa asdfafsafasdasfasfasfdsafa' },
-  ];
+  const [userId, setUserId] = useState(null);
+  const [groups, setGroups] = useState([]);
+  const [isAuthReady, setIsAuthReady] = useState(false);
+  const [showModal, setShowModal] = useState(false);
+  const [modalMode, setModalMode] = useState("create");
+  const [newGroupName, setNewGroupName] = useState("");
+  const [newGroupDescription, setNewGroupDescription] = useState("");
+  const [joinGroupId, setJoinGroupId] = useState("");
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [modalMessage, setModalMessage] = useState("");
+  const [userName, setUserName] = useState("User");
 
-  const privateGroups = [
-    { id: 'v1', name: 'COMP 206 Study Group (Sec A)', members: 15, description: 'Dedicated to COMP 206 coursework.' },
-    { id: 'v2', name: 'Project group Team', members: 5, description: 'Private space for our final year project.' },
-  ];
+  const firebaseConfig = JSON.parse(
+    typeof __firebase_config !== "undefined" ? __firebase_config : "{}"
+  );
+  const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
+  const auth = getAuth(app);
+  const db = getFirestore(app);
+  const appId = typeof __app_id !== "undefined" ? __app_id : "default-app-id";
 
-  const userName = 'Praful';
-  const userId = 'kupals-user-id-1234567890abcdef';
+  useEffect(() => {
+    const initializeAuth = async () => {
+      try {
+        if (typeof __initial_auth_token !== "undefined") {
+          await signInWithCustomToken(auth, __initial_auth_token);
+        }
+      } catch (error) {
+        console.error("Firebase Auth Error:", error);
+      }
+    };
+    initializeAuth();
+
+    const unsubscribeAuth = onAuthStateChanged(auth, (user) => {
+      if (user) {
+        setUserId(user.uid);
+        setUserName(user.displayName || user.email || "User");
+        setIsAuthReady(true);
+      } else {
+        setUserId(null);
+        setIsAuthReady(true);
+        setGroups([]);
+        setLoading(false);
+      }
+    });
+
+    return () => unsubscribeAuth();
+  }, [auth]);
+
+  useEffect(() => {
+    if (!isAuthReady || !userId) {
+      setLoading(false);
+      return;
+    }
+
+    setLoading(true);
+    const userGroupsRef = collection(
+      db,
+      `artifacts/${appId}/users/${userId}/groups`
+    );
+    const unsubscribe = onSnapshot(
+      userGroupsRef,
+      async (snapshot) => {
+        const userGroupRefs = snapshot.docs.map((d) => d.data().groupRef.id);
+        if (userGroupRefs.length === 0) {
+          setGroups([]);
+          setLoading(false);
+          return;
+        }
+
+        try {
+          const publicGroupsCollection = collection(
+            db,
+            `artifacts/${appId}/public/data/groups`
+          );
+          const groupPromises = userGroupRefs.map((id) =>
+            getDoc(doc(publicGroupsCollection, id))
+          );
+          const groupSnapshots = await Promise.all(groupPromises);
+          const groupsData = groupSnapshots.map((d) => ({
+            id: d.id,
+            ...d.data(),
+          }));
+          setGroups(groupsData);
+        } catch (err) {
+          console.error("Error fetching group details:", err);
+          setError("Failed to load group details.");
+        }
+        setLoading(false);
+      },
+      (err) => {
+        console.error("Error fetching user groups:", err);
+        setError("Failed to load your groups. Please try again later.");
+        setLoading(false);
+      }
+    );
+
+    return () => unsubscribe();
+  }, [isAuthReady, userId, db, appId]);
+
+  const handleCreateGroup = async () => {
+    if (newGroupName.trim() === "") {
+      setModalMessage("Group name cannot be empty.");
+      return;
+    }
+    setModalMessage("");
+
+    try {
+      const publicGroupsCollection = collection(
+        db,
+        `artifacts/${appId}/public/data/groups`
+      );
+      const newGroupDocRef = await addDoc(publicGroupsCollection, {
+        name: newGroupName,
+        description: newGroupDescription,
+        createdAt: serverTimestamp(),
+        createdBy: userId,
+      });
+
+      const chatCollectionRef = collection(
+        db,
+        `artifacts/${appId}/public/data/groups/${newGroupDocRef.id}/chats`
+      );
+      await addDoc(chatCollectionRef, {
+        text: `${userName} created the group!`,
+        createdAt: serverTimestamp(),
+        userId: "system",
+      });
+
+      const userGroupsCollection = collection(
+        db,
+        `artifacts/${appId}/users/${userId}/groups`
+      );
+      await setDoc(doc(userGroupsCollection, newGroupDocRef.id), {
+        groupRef: newGroupDocRef,
+        joinedAt: serverTimestamp(),
+      });
+
+      setNewGroupName("");
+      setNewGroupDescription("");
+      setShowModal(false);
+    } catch (err) {
+      console.error("Error creating group:", err);
+      setModalMessage("Failed to create group. Please try again.");
+    }
+  };
+
+  const handleJoinGroup = async () => {
+    if (joinGroupId.trim() === "") {
+      setModalMessage("Group ID cannot be empty.");
+      return;
+    }
+    setModalMessage("");
+
+    try {
+      const publicGroupRef = doc(
+        db,
+        `artifacts/${appId}/public/data/groups`,
+        joinGroupId
+      );
+      const publicGroupSnap = await getDoc(publicGroupRef);
+
+      if (!publicGroupSnap.exists()) {
+        setModalMessage("Group with that ID does not exist.");
+        return;
+      }
+
+      const userGroupsCollection = collection(
+        db,
+        `artifacts/${appId}/users/${userId}/groups`
+      );
+      const userGroupDocRef = doc(userGroupsCollection, joinGroupId);
+      const userGroupSnap = await getDoc(userGroupDocRef);
+
+      if (userGroupSnap.exists()) {
+        setModalMessage("You are already a member of this group.");
+        return;
+      }
+
+      await setDoc(userGroupDocRef, {
+        groupRef: publicGroupRef,
+        joinedAt: serverTimestamp(),
+      });
+
+      setJoinGroupId("");
+      setShowModal(false);
+    } catch (err) {
+      console.error("Error joining group:", err);
+      setModalMessage("Failed to join group. Please try again.");
+    }
+  };
+
+  const GroupCard = ({ id, name, description }) => (
+    <Link href={`/groups/${id}`} className="block">
+      <div className="bg-[#252F2D]/70 backdrop-blur-lg rounded-2xl shadow-2xl p-6 border border-[#3A3A4D]/50 flex flex-col space-y-4 hover:bg-[#252F2D]/90 transition-colors duration-200 cursor-pointer">
+        <div className="flex items-center space-x-4">
+          <div className="w-14 h-14 bg-[#2ACAA8]/20 text-[#2ACAA8] flex items-center justify-center rounded-full text-2xl font-bold flex-shrink-0 border border-[#2ACAA8]/50">
+            {name ? name.charAt(0).toUpperCase() : "G"}
+          </div>
+          <div className="flex-grow">
+            <p className="text-white font-semibold text-xl">
+              {name || "Unnamed Group"}
+            </p>
+            <p className="text-gray-300 text-sm mt-1 truncate">
+              {description || "No description provided."}
+            </p>
+          </div>
+        </div>
+        <div className="text-xs text-gray-400 break-all">
+          Group ID: <span className="font-mono text-gray-300">{id}</span>
+        </div>
+      </div>
+    </Link>
+  );
 
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col font-sans antialiased">
-      <nav className="bg-white shadow-sm p-4 flex items-center justify-between sticky top-0 z-10">
-        <div className="flex items-center space-x-2">
-          <span className="text-xl font-bold text-[#158080]">KUPals</span>
+    <div className="min-h-screen font-sans antialiased text-white bg-[#1A1A1A]">
+      <div className="relative">
+        <div className="absolute inset-0 bg-gradient-to-br from-[#7fe0e0]/20 to-transparent pointer-events-none"></div>
+        <div className="absolute inset-0 bg-gradient-to-tl from-[#2ACAA8]/20 to-transparent pointer-events-none"></div>
+      </div>
+      <nav className="relative z-10 bg-[#252F2D]/70 backdrop-blur-lg shadow-sm p-4 flex items-center justify-between sticky top-0 border-b border-[#3A3A4D]/50">
+        <div className="flex items-center">
+          <span className="text-xl font-bold text-white">KUPals</span>
         </div>
         <div className="flex items-center space-x-4">
-          <span className="text-gray-700">Welcome, {userName}!</span>
+          <Link
+            href="#"
+            className="px-3 py-2 text-gray-300 hover:text-white transition-colors duration-150 ease-in-out"
+          >
+            Dashboard
+          </Link>
+          <button
+            className="text-sm px-4 py-2 bg-[#2ACAA8] text-white rounded-lg font-semibold hover:bg-[#23A891] transition"
+            onClick={() => {
+              setShowModal(true);
+              setModalMode("create");
+            }}
+          >
+            Create Group
+          </button>
+          <button
+            className="text-sm px-4 py-2 bg-[#2ACAA8] text-white rounded-lg font-semibold hover:bg-[#23A891] transition"
+            onClick={() => {
+              setShowModal(true);
+              setModalMode("join");
+            }}
+          >
+            Join Group
+          </button>
         </div>
       </nav>
 
-      <div className="flex flex-1 overflow-hidden">
-        <aside className="w-64 bg-white shadow-md p-4 flex flex-col space-y-4 border-r border-gray-200">
-          <nav className="space-y-2">
-            <Link href="dashboard" className="block px-3 py-2 text-gray-700 hover:bg-gray-100 rounded-md transition duration-150 ease-in-out">Dashboard</Link>
-            <Link href="groups" className="block px-3 py-2 bg-gray-100 text-[#158080] font-semibold rounded-md transition duration-150 ease-in-out">Groups</Link>
-            <Link href="chat" className="block px-3 py-2 text-gray-700 hover:bg-gray-100 rounded-md transition duration-150 ease-in-out">Chat</Link>
-            <Link href="profile" className="block px-3 py-2 text-gray-700 hover:bg-gray-100 rounded-md transition duration-150 ease-in-out">Profile</Link>
-            <Link href="settings" className="block px-3 py-2 text-gray-700 hover:bg-gray-100 rounded-md transition duration-150 ease-in-out">Settings</Link>
-          </nav>
-          {userId && (
-            <div className="mt-auto p-3 bg-gray-100 rounded-lg text-sm text-gray-600 break-words">
-              User ID: <br /> <span className="font-mono text-xs">{userId}</span>
-            </div>
-          )}
-        </aside>
+      <main className="relative flex-1 p-6 overflow-y-auto">
+        <h1 className="text-3xl font-bold text-gray-200 mb-8 mt-4">
+          My Groups
+        </h1>
 
-        <main className="flex-1 p-6 overflow-y-auto bg-gray-50">
-          <h1 className="text-3xl font-bold text-gray-800 mb-6">Explore & Manage Groups</h1>
-
-          <div className="flex flex-col md:flex-row gap-4 mb-8">
-            <input
-              type="text"
-              placeholder="Search groups..."
-              className="flex-1 p-3 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-[#158080] focus:border-transparent"
-            />
-            <button className="px-5 py-3 bg-[#158080] text-white font-semibold rounded-md shadow-md hover:bg-teal-700 transition duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-[#158080] focus:ring-opacity-50">
-              + Create New Group
-            </button>
+        {loading ? (
+          <div className="text-gray-400 text-center py-10">
+            Loading groups...
           </div>
+        ) : error ? (
+          <div className="text-red-400 text-center py-10">{error}</div>
+        ) : groups.length > 0 ? (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {groups.map((group) => (
+              <GroupCard
+                key={group.id}
+                id={group.id}
+                name={group.name}
+                description={group.description}
+              />
+            ))}
+          </div>
+        ) : (
+          <div className="text-gray-400 text-center py-10">
+            <p className="text-lg">You are not a member of any groups yet.</p>
+            <p className="mt-2">
+              Click "Create Group" to start a new one or "Join Group" to join an
+              existing one.
+            </p>
+            <div className="mt-6 flex justify-center space-x-4">
+              <button
+                className="py-3 px-8 bg-[#2ACAA8] text-white font-semibold rounded-lg hover:bg-[#23A891] transition duration-300"
+                onClick={() => {
+                  setShowModal(true);
+                  setModalMode("create");
+                }}
+              >
+                Create Group
+              </button>
+              <button
+                className="py-3 px-8 bg-[#2ACAA8] text-white font-semibold rounded-lg hover:bg-[#23A891] transition duration-300"
+                onClick={() => {
+                  setShowModal(true);
+                  setModalMode("join");
+                }}
+              >
+                Join Group
+              </button>
+            </div>
+          </div>
+        )}
+      </main>
 
-          <section className="mb-10">
-            <h2 className="text-2xl font-bold text-gray-800 mb-5 border-b-2 border-gray-200 pb-2">Public Interest Groups</h2>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-              {publicGroups.map(group => (
-                <div key={group.id} className="bg-white rounded-lg shadow-md p-5 border border-gray-200 hover:shadow-lg transition duration-200 ease-in-out">
-                  <h3 className="text-xl font-semibold text-gray-800 mb-2 truncate">{group.name}</h3>
-                  <p className="text-gray-600 text-sm mb-3 line-clamp-2">{group.description}</p>
-                  <div className="flex items-center text-gray-500 text-xs mb-4">
-                    <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 20h-5m-1.58-1.58C10.74 18.06 10 17.15 10 16a6 6 0 1112 0c0 1.15-.74 2.06-1.42 2.42M12 13a6 6 0 00-6-6v6a6 6 0 006 6z"></path></svg>
-                    {group.members} Members
-                  </div>
-                  <button className="w-full px-4 py-2 bg-[#158080] text-white rounded-md hover:bg-teal-700 transition duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-[#158080] focus:ring-opacity-50">
+      {showModal && (
+        <div className="fixed inset-0 bg-[#1A1A1A]/70 flex items-center justify-center p-4 z-50">
+          <div className="bg-[#252F2D]/70 backdrop-blur-lg rounded-2xl shadow-2xl p-8 w-full max-w-md border border-[#3A3A4D]/50">
+            <div className="flex justify-between items-center mb-6">
+              <h2 className="text-2xl font-bold text-[#2ACAA8]">
+                {modalMode === "create" ? "Create a New Group" : "Join a Group"}
+              </h2>
+              <button
+                onClick={() => setShowModal(false)}
+                className="text-gray-400 hover:text-white text-xl"
+              >
+                &times;
+              </button>
+            </div>
+            {modalMessage && (
+              <div className="bg-red-900 text-red-300 p-3 rounded-md mb-4">
+                {modalMessage}
+              </div>
+            )}
+            {modalMode === "create" ? (
+              <div className="space-y-4">
+                <div>
+                  <label
+                    htmlFor="newGroupName"
+                    className="block text-sm font-medium text-gray-300 mb-1"
+                  >
+                    Group Name
+                  </label>
+                  <input
+                    type="text"
+                    id="newGroupName"
+                    placeholder="Group Name"
+                    value={newGroupName}
+                    onChange={(e) => setNewGroupName(e.target.value)}
+                    className="w-full p-3 bg-[#354240] border border-[#455553] rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#3CE6BD] shadow-sm"
+                  />
+                </div>
+                <div>
+                  <label
+                    htmlFor="newGroupDescription"
+                    className="block text-sm font-medium text-gray-300 mb-1"
+                  >
+                    Description (Optional)
+                  </label>
+                  <textarea
+                    id="newGroupDescription"
+                    placeholder="Group Description (Optional)"
+                    value={newGroupDescription}
+                    onChange={(e) => setNewGroupDescription(e.target.value)}
+                    className="w-full p-3 bg-[#354240] border border-[#455553] rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#3CE6BD] shadow-sm resize-y"
+                    rows="3"
+                  ></textarea>
+                </div>
+                <div className="flex justify-end pt-4">
+                  <button
+                    onClick={handleCreateGroup}
+                    className="py-3 px-8 bg-[#2ACAA8] text-white font-semibold rounded-lg hover:bg-[#23A891] transition duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
+                    disabled={!newGroupName.trim()}
+                  >
+                    Create Group
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                <div>
+                  <label
+                    htmlFor="joinGroupId"
+                    className="block text-sm font-medium text-gray-300 mb-1"
+                  >
+                    Group ID
+                  </label>
+                  <input
+                    type="text"
+                    id="joinGroupId"
+                    placeholder="Enter Group ID"
+                    value={joinGroupId}
+                    onChange={(e) => setJoinGroupId(e.target.value)}
+                    className="w-full p-3 bg-[#354240] border border-[#455553] rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#3CE6BD] shadow-sm"
+                  />
+                </div>
+                <div className="flex justify-end pt-4">
+                  <button
+                    onClick={handleJoinGroup}
+                    className="py-3 px-8 bg-[#2ACAA8] text-white font-semibold rounded-lg hover:bg-[#23A891] transition duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
+                    disabled={!joinGroupId.trim()}
+                  >
                     Join Group
                   </button>
                 </div>
-              ))}
-            </div>
-            {publicGroups.length === 0 && (
-              <p className="text-gray-500 text-center py-8">No public groups available at the moment.</p>
+              </div>
             )}
-          </section>
-
-          <section>
-            <h2 className="text-2xl font-bold text-gray-800 mb-5 border-b-2 border-gray-200 pb-2">My Private Groups</h2>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-              {privateGroups.map(group => (
-                <div key={group.id} className="bg-white rounded-lg shadow-md p-5 border border-gray-200 hover:shadow-lg transition duration-200 ease-in-out">
-                  <h3 className="text-xl font-semibold text-gray-800 mb-2 truncate">{group.name}</h3>
-                  <p className="text-gray-600 text-sm mb-3 line-clamp-2">{group.description}</p>
-                  <div className="flex items-center text-gray-500 text-xs mb-4">
-                    <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path></svg>
-                    {group.members} Members
-                  </div>
-                  <button className="w-full px-4 py-2 bg-gray-300 text-gray-800 rounded-md hover:bg-gray-400 transition duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-gray-300 focus:ring-opacity-50">
-                    View Group
-                  </button>
-                </div>
-              ))}
+            <div className="mt-6 text-center border-t border-[#3A3A4D]/50 pt-4">
+              <button
+                onClick={() =>
+                  setModalMode(modalMode === "create" ? "join" : "create")
+                }
+                className="text-[#2ACAA8] hover:underline"
+              >
+                {modalMode === "create"
+                  ? "Already have a Group ID? Join one."
+                  : "Want to create a new group?"}
+              </button>
             </div>
-            {privateGroups.length === 0 && (
-              <p className="text-gray-500 text-center py-8">You are not part of any private groups.</p>
-            )}
-            <div className="text-center mt-8">
-                <button className="text-[#158080] hover:underline px-4 py-2">
-                    Request to Join a Private Group
-                </button>
-            </div>
-          </section>
-        </main>
-      </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
