@@ -220,25 +220,29 @@ const KUPalsDashboard = () => {
               {myGroups.length > 0 ? (
                 <ul className="space-y-4">
                   {myGroups.map((group) => (
-                    <li
-                      key={group.id}
-                      className="flex items-center space-x-4 p-4 bg-[#2C2C2C] rounded-lg hover:bg-[#2C2C2C]/75 transition-colors duration-200 cursor-pointer"
-                    >
-                      <div className="w-10 h-10 bg-[#2DE1C8] text-[#131C28] flex items-center justify-center rounded-full text-lg font-bold flex-shrink-0">
-                        {group.name ? group.name.charAt(0).toUpperCase() : "G"}
-                      </div>
-                      <div className="flex-grow">
-                        <p className="text-gray-200 font-medium text-lg">
-                          {group.name || `Group ${group.id.substring(0, 5)}`}
-                        </p>
-                        <p className="text-gray-400 text-sm">
-                          {group.description || "No description provided."}
-                        </p>
-                      </div>
-                      <span className="text-gray-500 text-sm">
-                        ({group.type || "Public"})
-                      </span>
-                    </li>
+                    <Link href={`/group/${group.id}`}>
+                      <li
+                        key={group.id}
+                        className="flex items-center space-x-4 p-4 bg-[#2C2C2C] rounded-lg hover:bg-[#2C2C2C]/75 transition-colors duration-200 cursor-pointer"
+                      >
+                        <div className="w-10 h-10 bg-[#2DE1C8] text-[#131C28] flex items-center justify-center rounded-full text-lg font-bold flex-shrink-0">
+                          {group.name
+                            ? group.name.charAt(0).toUpperCase()
+                            : "G"}
+                        </div>
+                        <div className="flex-grow">
+                          <p className="text-gray-200 font-medium text-lg">
+                            {group.name || `Group ${group.id.substring(0, 5)}`}
+                          </p>
+                          <p className="text-gray-400 text-sm">
+                            {group.description || "No description provided."}
+                          </p>
+                        </div>
+                        <span className="text-gray-500 text-sm">
+                          ({group.type || "Public"})
+                        </span>
+                      </li>
+                    </Link>
                   ))}
                 </ul>
               ) : (

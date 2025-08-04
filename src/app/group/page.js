@@ -214,7 +214,7 @@ const KUPalsGroupsPage = () => {
   };
 
   const GroupCard = ({ id, name, description }) => (
-    <Link href={`/groups/${id}`} className="block">
+    <Link href={`/group/${id}`} className="block">
       <div className="bg-[#252F2D]/70 backdrop-blur-lg rounded-2xl shadow-2xl p-6 border border-[#3A3A4D]/50 flex flex-col space-y-4 hover:bg-[#252F2D]/90 transition-colors duration-200 cursor-pointer">
         <div className="flex items-center space-x-4">
           <div className="w-14 h-14 bg-[#2ACAA8]/20 text-[#2ACAA8] flex items-center justify-center rounded-full text-2xl font-bold flex-shrink-0 border border-[#2ACAA8]/50">

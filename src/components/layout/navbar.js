@@ -16,6 +16,7 @@ export default function Navbar() {
     { name: "Home", href: "/" },
     { name: "About", href: "/about" },
     { name: "FAQs", href: "/faqs" },
+    { name: "Dashboard", href: "/dashboard" },
     { name: "Profile", href: "/profile" + (user ? `/${user.uid}` : "") },
   ];
 
