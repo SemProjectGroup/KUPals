@@ -14,8 +14,12 @@ import {
   query,
   onSnapshot,
 } from "firebase/firestore";
+import { useContext } from "react";
+import Image from "next/image";
+import { AuthContext } from "@/context/authContext";
 
 const KUPalsDashboard = () => {
+  const { user, loading } = useContext(AuthContext);
   const [userName, setUserName] = useState("Guest");
   const [userId, setUserId] = useState(null);
   const [myGroups, setMyGroups] = useState([]);
@@ -155,7 +159,7 @@ const KUPalsDashboard = () => {
               Chat
             </Link>
             <Link
-              href="profile"
+              href={`/profile${user ? `/${user.uid}` : ""}`}
               className="block px-3 py-2 text-gray-300 hover:bg-[#2C2C2C] rounded-md transition duration-150 ease-in-out"
             >
               Profile
