@@ -57,7 +57,7 @@ export default function GroupChat() {
     if (groupId) {
       const groupDocRef = doc(
         db,
-        `artifacts/${appId}/public/data/group`,
+        `artifacts/${appId}/public/data/groups`,
         groupId
       );
       getDoc(groupDocRef)
