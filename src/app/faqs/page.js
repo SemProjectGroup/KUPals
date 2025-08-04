@@ -1,274 +1,286 @@
-// Praful Bhatt roll 61
 "use client";
 
-import { useState, useEffect, useRef } from "react";
-import Image from "next/image";
 import Link from "next/link";
-import { useParams } from "next/navigation";
-import { initializeApp, getApps, getApp } from "firebase/app";
-import { getAuth, onAuthStateChanged } from "firebase/auth";
-import {
-  getFirestore,
-  collection,
-  onSnapshot,
-  addDoc,
-  serverTimestamp,
-  doc,
-  getDoc,
-} from "firebase/firestore";
+import Cubes from "@/components/backgrounds/cubes";
 
-export default function GroupChat() {
-  const { groupId } = useParams();
-
-  const [messages, setMessages] = useState([]);
-  const [newMessage, setNewMessage] = useState("");
-  const [groupName, setGroupName] = useState("Loading Group...");
-  const [isSending, setIsSending] = useState(false);
-  const [loading, setLoading] = useState(true);
-  const [userId, setUserId] = useState(null);
-  const [userName, setUserName] = useState("Anonymous");
-  const messagesEndRef = useRef(null);
-
-  const firebaseConfig = JSON.parse(
-    typeof __firebase_config !== "undefined" ? __firebase_config : "{}"
-  );
-  const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
-  const auth = getAuth(app);
-  const db = getFirestore(app);
-  const appId = typeof __app_id !== "undefined" ? __app_id : "default-app-id";
-
-  useEffect(() => {
-    // This listener handles both authentication state and data fetching.
-    // It ensures we have a valid user ID before attempting Firestore operations.
-    const unsubscribeAuth = onAuthStateChanged(auth, (user) => {
-      if (user && groupId) {
-        setUserId(user.uid);
-        setUserName(user.displayName || "Anonymous User");
-
-        // Fetch group details
-        const groupDocRef = doc(
-          db,
-          `artifacts/${appId}/public/data/groups`,
-          groupId
-        );
-        getDoc(groupDocRef)
-          .then((groupSnap) => {
-            if (groupSnap.exists()) {
-              setGroupName(groupSnap.data().name);
-            } else {
-              setGroupName("Group Not Found");
-            }
-          })
-          .catch((error) => {
-            console.error("Error fetching group details:", error);
-            setGroupName("Error Loading Group");
-          });
-
-        // Set up real-time listener for messages
-        const chatCollectionRef = collection(
-          db,
-          `artifacts/${appId}/public/data/groups/${groupId}/chats`
-        );
-        const unsubscribeMessages = onSnapshot(
-          chatCollectionRef,
-          (snapshot) => {
-            const fetchedMessages = snapshot.docs.map((doc) => ({
-              id: doc.id,
-              ...doc.data(),
-              createdAt: doc.data().createdAt?.toDate
-                ? doc.data().createdAt.toDate().toISOString()
-                : null,
-            }));
-            fetchedMessages.sort(
-              (a, b) => new Date(a.createdAt) - new Date(b.createdAt)
-            );
-            setMessages(fetchedMessages);
-            setLoading(false);
-          }
-        );
-
-        // Return a cleanup function that unsubscribes the messages listener
-        return () => unsubscribeMessages();
-      } else {
-        setUserId(null);
-        setLoading(false);
-      }
-    });
-
-    // This cleanup function unsubscribes the auth listener when the component unmounts
-    return () => unsubscribeAuth();
-  }, [auth, db, groupId, appId]);
-
-  useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages]);
-
-  const handleSendMessage = async (e) => {
-    e.preventDefault();
-    if (!userId || !newMessage.trim() || isSending) {
-      return;
-    }
-
-    setIsSending(true);
-    try {
-      const chatCollectionRef = collection(
-        db,
-        `artifacts/${appId}/public/data/groups/${groupId}/chats`
-      );
-      await addDoc(chatCollectionRef, {
-        text: newMessage,
-        createdAt: serverTimestamp(),
-        userId: userId,
-        userName: userName,
-        userAvatar: "https://placehold.co/100x100/3CE6BD/ffffff?text=U",
-      });
-      setNewMessage("");
-    } catch (error) {
-      console.error("Error sending message:", error);
-    } finally {
-      setIsSending(false);
-    }
-  };
-
-  if (loading || !groupId) {
-    return (
-      <div className="min-h-screen bg-[#1A1A1A] flex items-center justify-center text-white">
-        <p>Loading chat...</p>
-      </div>
-    );
-  }
-
-  if (!userId) {
-    return (
-      <div className="min-h-screen bg-[#1A1A1A] flex flex-col items-center justify-center text-white p-4">
-        <p className="text-xl mb-4">
-          You need to be logged in to join the chat.
-        </p>
-        <Link href="/create-account">
-          <button className="py-2 px-6 bg-[#2ACAA8] text-white rounded-md hover:bg-[#23A891] transition duration-300 ease-in-out">
-            Sign Up / Login
-          </button>
-        </Link>
-      </div>
-    );
-  }
-
+export default function Home() {
   return (
-    <div className="min-h-screen bg-[#1A1A1A] py-8 flex items-center justify-center font-sans">
-      <div className="w-full max-w-3xl bg-[#252F2D] rounded-2xl shadow-xl flex flex-col h-[80vh]">
-        <div className="p-6 border-b border-[#354240] text-white">
-          <h2 className="text-2xl font-bold">{groupName}</h2>
-          <p className="text-sm text-gray-400">
-            Group ID: <span className="font-mono">{groupId}</span>
-          </p>
-        </div>
-
-        <div className="flex-1 overflow-y-auto p-6 space-y-4 custom-scrollbar">
-          {messages.length === 0 ? (
-            <p className="text-gray-400 text-center mt-10">
-              No messages yet. Be the first to say hi!
-            </p>
-          ) : (
-            messages.map((msg) => (
-              <div
-                key={msg.id}
-                className={`flex items-start gap-3 ${
-                  msg.userId === userId ? "justify-end" : ""
-                }`}
-              >
-                {msg.userId !== userId && (
-                  <Link href={`/profile/detailed/${msg.userId}`}>
-                    <div className="relative w-8 h-8 rounded-full overflow-hidden flex-shrink-0 cursor-pointer">
-                      <Image
-                        src={msg.userAvatar || "/placeholder-avatar.png"}
-                        alt="Avatar"
-                        width={32}
-                        height={32}
-                        objectFit="cover"
-                        className="rounded-full"
-                        onError={(e) => {
-                          e.target.src = "/placeholder-avatar.png";
-                        }}
-                      />
-                    </div>
-                  </Link>
-                )}
-                <div
-                  className={`flex flex-col ${
-                    msg.userId === userId ? "items-end" : "items-start"
-                  }`}
-                >
-                  <Link href={`/profile/detailed/${msg.userId}`}>
-                    <span
-                      className={`text-sm font-semibold ${
-                        msg.userId === userId ? "text-[#2ACAA8]" : "text-white"
-                      } cursor-pointer hover:underline`}
-                    >
-                      {msg.userName || "Anonymous"}
-                    </span>
-                  </Link>
-                  <div
-                    className={`p-3 rounded-xl max-w-[75%] ${
-                      msg.userId === userId
-                        ? "bg-[#2ACAA8] text-white rounded-br-none"
-                        : "bg-[#354240] text-white rounded-bl-none"
-                    }`}
-                  >
-                    <p className="text-sm break-words">{msg.text}</p>
-                  </div>
-                  <span className="text-xs text-gray-500 mt-1">
-                    {msg.createdAt
-                      ? new Date(msg.createdAt).toLocaleTimeString([], {
-                          hour: "2-digit",
-                          minute: "2-digit",
-                        })
-                      : "Sending..."}
-                  </span>
-                </div>
-                {msg.userId === userId && (
-                  <Link href={`/profile/detailed/${msg.userId}`}>
-                    <div className="relative w-8 h-8 rounded-full overflow-hidden flex-shrink-0 cursor-pointer">
-                      <Image
-                        src={msg.userAvatar || "/placeholder-avatar.png"}
-                        alt="Avatar"
-                        width={32}
-                        height={32}
-                        objectFit="cover"
-                        className="rounded-full"
-                        onError={(e) => {
-                          e.target.src = "/placeholder-avatar.png";
-                        }}
-                      />
-                    </div>
-                  </Link>
-                )}
-              </div>
-            ))
-          )}
-          <div ref={messagesEndRef} />
-        </div>
-
-        <form
-          onSubmit={handleSendMessage}
-          className="p-6 border-t border-[#354240] flex gap-4"
-        >
-          <input
-            type="text"
-            value={newMessage}
-            onChange={(e) => setNewMessage(e.target.value)}
-            placeholder="Type your message..."
-            className="flex-1 p-3 bg-[#354240] border border-[#455553] rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#3CE6BD] shadow-sm"
-            disabled={isSending}
-          />
-          <button
-            type="submit"
-            className="py-3 px-6 bg-[#2ACAA8] text-white font-semibold rounded-lg hover:bg-[#23A891] focus:outline-none focus:ring-2 focus:ring-[#3CE6BD] focus:ring-offset-2 focus:ring-offset-[#252F2D] transition duration-300 ease-in-out shadow-md disabled:opacity-50 disabled:cursor-not-allowed"
-            disabled={isSending || !newMessage.trim()}
-          >
-            Send
-          </button>
-        </form>
+    <div className="min-h-screen bg-[#1A1A1A] text-white font-sans overflow-hidden relative">
+      <div className="absolute inset-0 z-0 opacity-10">
+        <Cubes
+          gridSize={20}
+          radius={2}
+          maxAngle={30}
+          rippleSpeed={1}
+          autoAnimate={true}
+          rippleOnClick={false}
+          faceColor="#1A1A1A"
+          borderStyle="1px solid rgba(42,202,168,0.2)"
+          shadow={false}
+          cubeSize={null}
+        />
       </div>
+
+      <main className="relative z-10 container mx-auto px-4 py-8 md:py-16">
+        <nav className="flex justify-between items-center py-4 mb-12">
+          <div className="text-2xl font-bold text-white drop-shadow-md">
+            KUPals
+          </div>
+          <div className="space-x-6">
+            <Link
+              href="/"
+              className="text-gray-300 hover:text-[#2ACAA8] transition-colors duration-300"
+            >
+              Home
+            </Link>
+            <Link
+              href="/about"
+              className="text-gray-300 hover:text-[#2ACAA8] transition-colors duration-300"
+            >
+              About
+            </Link>
+            <Link
+              href="/faqs"
+              className="text-gray-300 hover:text-[#2ACAA8] transition-colors duration-300"
+            >
+              FAQs
+            </Link>
+            <Link
+              href="/dashboard"
+              className="text-gray-300 hover:text-[#2ACAA8] transition-colors duration-300"
+            >
+              Dashboard
+            </Link>
+            <Link
+              href="/profile"
+              className="text-gray-300 hover:text-[#2ACAA8] transition-colors duration-300"
+            >
+              Profile
+            </Link>
+            <Link href="/create-account">
+              <button className="py-2 px-4 bg-[#2ACAA8] text-white rounded-md hover:bg-[#23A891] transition duration-300 ease-in-out">
+                Sign Up / Login
+              </button>
+            </Link>
+          </div>
+        </nav>
+
+        <section className="text-center mb-20 p-8 rounded-2xl bg-[#252F2D]/30 backdrop-blur-md border border-[#3A3A4D]/50 shadow-lg animate-fade-in-up">
+          <h1 className="text-5xl md:text-6xl font-extrabold mb-6 leading-tight drop-shadow-lg">
+            <span className="block text-white/90">Welcome to</span>
+            <span className="block text-transparent bg-clip-text bg-gradient-to-r from-[#2ACAA8] to-[#3CE6BD] drop-shadow-[0_0_15px_rgba(42,202,168,0.6)] animate-pulse-glow">
+              KUPals!
+            </span>
+          </h1>
+          <p className="text-xl text-gray-200 mb-8 max-w-2xl mx-auto">
+            A Web-Based Social Platform for Kathmandu University Students
+          </p>
+          <Link href="/create-account">
+            <button className="py-3 px-8 bg-[#2ACAA8] text-white font-semibold rounded-lg hover:bg-[#23A891] focus:outline-none focus:ring-2 focus:ring-[#3CE6BD] focus:ring-offset-2 focus:ring-offset-[#252F2D] transition duration-300 ease-in-out shadow-lg transform hover:scale-105">
+              Join the KU Community Today!
+            </button>
+          </Link>
+        </section>
+
+        <section className="mb-20 p-8 rounded-2xl bg-[#252F2D]/30 backdrop-blur-md border border-[#3A3A4D]/50 shadow-lg animate-fade-in">
+          <h2 className="text-3xl font-bold text-[#2ACAA8] mb-6 text-center">
+            Project Overview
+          </h2>
+          <p className="text-lg text-gray-300 leading-relaxed mb-4">
+            KUPals is a lightweight, web-based social platform designed
+            specifically for students at Kathmandu University. In a university
+            setting, students often lack a centralized platform for connecting
+            over shared interests and organizing social and academic activities.
+            KUPals bridges that gap by providing:
+          </p>
+          <ul className="list-disc list-inside text-lg text-gray-300 space-y-2 pl-4">
+            <li>
+              Public interest groups (e.g., art, music, hiking, coding clubs)
+            </li>
+            <li>Private groups for focused academic or social discussions</li>
+            <li>Real-time chat and notifications</li>
+            <li>Secure user authentication via Email/Google</li>
+            <li>Responsive UI built with React and Tailwind CSS</li>
+            <li>Scalable backend using Firebase services</li>
+          </ul>
+        </section>
+
+        <section className="mb-20 p-8 rounded-2xl bg-[#252F2D]/30 backdrop-blur-md border border-[#3A3A4D]/50 shadow-lg animate-fade-in">
+          <h2 className="text-3xl font-bold text-[#2ACAA8] mb-8 text-center">
+            Key Features
+          </h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+            <div className="bg-[#354240]/60 p-6 rounded-xl shadow-md border border-[#455553]/50 backdrop-blur-sm text-center transform hover:scale-105 transition-transform duration-300">
+              <h3 className="text-xl font-semibold text-white mb-3">
+                Public Interest Groups
+              </h3>
+              <p className="text-gray-300 text-base">
+                Discover and join groups based on your passions.
+              </p>
+            </div>
+            <div className="bg-[#354240]/60 p-6 rounded-xl shadow-md border border-[#455553]/50 backdrop-blur-sm text-center transform hover:scale-105 transition-transform duration-300">
+              <h3 className="text-xl font-semibold text-white mb-3">
+                Private Collaboration Groups
+              </h3>
+              <p className="text-gray-300 text-base">
+                Create invite-only groups for focused discussions.
+              </p>
+            </div>
+            <div className="bg-[#354240]/60 p-6 rounded-xl shadow-md border border-[#455553]/50 backdrop-blur-sm text-center transform hover:scale-105 transition-transform duration-300">
+              <h3 className="text-xl font-semibold text-white mb-3">
+                Real-Time Chat & Notifications
+              </h3>
+              <p className="text-gray-300 text-base">
+                Stay connected with instant messaging and alerts.
+              </p>
+            </div>
+            <div className="bg-[#354240]/60 p-6 rounded-xl shadow-md border border-[#455553]/50 backdrop-blur-sm text-center transform hover:scale-105 transition-transform duration-300">
+              <h3 className="text-xl font-semibold text-white mb-3">
+                User Authentication & Profiles
+              </h3>
+              <p className="text-gray-300 text-base">
+                Secure login and personalized profiles.
+              </p>
+            </div>
+            <div className="bg-[#354240]/60 p-6 rounded-xl shadow-md border border-[#455553]/50 backdrop-blur-sm text-center transform hover:scale-105 transition-transform duration-300">
+              <h3 className="text-xl font-semibold text-white mb-3">
+                Privacy & Security
+              </h3>
+              <p className="text-gray-300 text-base">
+                Built with Firebase Authentication and Firestore Security Rules.
+              </p>
+            </div>
+            <div className="bg-[#354240]/60 p-6 rounded-xl shadow-md border border-[#455553]/50 backdrop-blur-sm text-center transform hover:scale-105 transition-transform duration-300">
+              <h3 className="text-xl font-semibold text-white mb-3">
+                Responsive UI
+              </h3>
+              <p className="text-gray-300 text-base">
+                Optimized for mobile, tablet, and desktop devices.
+              </p>
+            </div>
+          </div>
+        </section>
+
+        <section className="mb-20 p-8 rounded-2xl bg-[#252F2D]/30 backdrop-blur-md border border-[#3A3A4D]/50 shadow-lg animate-fade-in">
+          <h2 className="text-3xl font-bold text-[#2ACAA8] mb-6 text-center">
+            Technologies Used
+          </h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-8 text-gray-300 text-lg">
+            <div>
+              <h3 className="text-xl font-semibold text-white mb-2">
+                Frontend
+              </h3>
+              <ul className="list-disc list-inside space-y-1 pl-4">
+                <li>React.js</li>
+                <li>Next.js (App Router)</li>
+                <li>Tailwind CSS</li>
+                <li>Context API</li>
+              </ul>
+            </div>
+            <div>
+              <h3 className="text-xl font-semibold text-white mb-2">Backend</h3>
+              <ul className="list-disc list-inside space-y-1 pl-4">
+                <li>Firebase Authentication</li>
+                <li>Firestore</li>
+                <li>Firebase Storage</li>
+                <li>Firebase Hosting</li>
+                <li>Firebase Cloud Functions (future use)</li>
+              </ul>
+            </div>
+            <div>
+              <h3 className="text-xl font-semibold text-white mb-2">
+                Development Tools
+              </h3>
+              <ul className="list-disc list-inside space-y-1 pl-4">
+                <li>ESLint & Prettier</li>
+                <li>Jest & Firebase Emulator Suite</li>
+                <li>React DevTools</li>
+                <li>GitHub Actions (optional)</li>
+              </ul>
+            </div>
+          </div>
+        </section>
+
+        <section className="text-center mb-20 p-8 rounded-2xl bg-[#252F2D]/30 backdrop-blur-md border border-[#3A3A4D]/50 shadow-lg animate-fade-in">
+          <h2 className="text-3xl font-bold text-white mb-6">
+            Explore Our Code
+          </h2>
+          <p className="text-lg text-gray-300 mb-8">
+            KUPals is an open-source project. Feel free to explore our codebase,
+            contribute, or provide feedback on GitHub!
+          </p>
+          <Link
+            href="https://github.com/SemProjectGroup/KUPals"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            <button className="py-3 px-8 bg-[#2ACAA8] text-white font-semibold rounded-lg hover:bg-[#23A891] focus:outline-none focus:ring-2 focus:ring-[#3CE6BD] focus:ring-offset-2 focus:ring-offset-[#252F2D] transition duration-300 ease-in-out shadow-lg transform hover:scale-105">
+              Visit GitHub Repository
+            </button>
+          </Link>
+        </section>
+
+        <footer className="text-center text-gray-400 text-sm pt-12 border-t border-[#3A3A4D]/50">
+          &copy; {new Date().getFullYear()} KUPals. All rights reserved.
+        </footer>
+      </main>
+
+      <style jsx>{`
+        @keyframes pulse-glow {
+          0%,
+          100% {
+            text-shadow: 0 0 5px rgba(42, 202, 168, 0.4),
+              0 0 10px rgba(42, 202, 168, 0.3), 0 0 15px rgba(42, 202, 168, 0.2);
+          }
+          50% {
+            text-shadow: 0 0 10px rgba(42, 202, 168, 0.8),
+              0 0 20px rgba(42, 202, 168, 0.6), 0 0 30px rgba(42, 202, 168, 0.4);
+          }
+        }
+
+        @keyframes fadeIn {
+          from {
+            opacity: 0;
+            transform: translateY(20px);
+          }
+          to {
+            opacity: 1;
+            transform: translateY(0);
+          }
+        }
+
+        @keyframes fadeInDelay {
+          from {
+            opacity: 0;
+          }
+          to {
+            opacity: 1;
+          }
+        }
+
+        .animate-fade-in-up {
+          animation: fadeIn 1s ease-out forwards;
+        }
+
+        .animate-fade-in {
+          animation: fadeInDelay 1s ease-out forwards;
+          animation-delay: 0.5s;
+          opacity: 0;
+        }
+
+        section:nth-of-type(2) {
+          animation-delay: 0.8s;
+        }
+        section:nth-of-type(3) {
+          animation-delay: 1.1s;
+        }
+        section:nth-of-type(4) {
+          animation-delay: 1.4s;
+        }
+        section:nth-of-type(5) {
+          animation-delay: 1.7s;
+        }
+      `}</style>
     </div>
   );
 }

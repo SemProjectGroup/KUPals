@@ -28,15 +28,15 @@ const Cubes = ({
   const colGap =
     typeof cellGap === "number"
       ? `${cellGap}px`
-      : (cellGap)?.col !== undefined
-        ? `${(cellGap).col}px`
-        : "5%";
+      : cellGap?.col !== undefined
+      ? `${cellGap.col}px`
+      : "5%";
   const rowGap =
     typeof cellGap === "number"
       ? `${cellGap}px`
-      : (cellGap)?.row !== undefined
-        ? `${(cellGap).row}px`
-        : "5%";
+      : cellGap?.row !== undefined
+      ? `${cellGap.row}px`
+      : "5%";
 
   const enterDur = duration.enter;
   const leaveDur = duration.leave;
@@ -44,32 +44,30 @@ const Cubes = ({
   const tiltAt = useCallback(
     (rowCenter, colCenter) => {
       if (!sceneRef.current) return;
-      sceneRef.current
-        .querySelectorAll(".cube")
-          .forEach((cube) => {
-            const r = +cube.dataset.row;
-            const c = +cube.dataset.col;
-            const dist = Math.hypot(r - rowCenter, c - colCenter);
-            if (dist <= radius) {
-              const pct = 1 - dist / radius;
-              const angle = pct * maxAngle;
-              gsap.to(cube, {
-                duration: enterDur,
-                ease: easing,
-                overwrite: true,
-                rotateX: -angle,
-                rotateY: angle,
-              });
-            } else {
-              gsap.to(cube, {
-                duration: leaveDur,
-                ease: "power3.out",
-                overwrite: true,
-                rotateX: 0,
-                rotateY: 0,
-              });
-            }
+      sceneRef.current.querySelectorAll(".cube").forEach((cube) => {
+        const r = +cube.dataset.row;
+        const c = +cube.dataset.col;
+        const dist = Math.hypot(r - rowCenter, c - colCenter);
+        if (dist <= radius) {
+          const pct = 1 - dist / radius;
+          const angle = pct * maxAngle;
+          gsap.to(cube, {
+            duration: enterDur,
+            ease: easing,
+            overwrite: true,
+            rotateX: -angle,
+            rotateY: angle,
           });
+        } else {
+          gsap.to(cube, {
+            duration: leaveDur,
+            ease: "power3.out",
+            overwrite: true,
+            rotateX: 0,
+            rotateY: 0,
+          });
+        }
+      });
     },
     [radius, maxAngle, enterDur, leaveDur, easing]
   );
@@ -127,16 +125,14 @@ const Cubes = ({
       const holdTime = baseHold / rippleSpeed;
 
       const rings = {};
-      sceneRef.current
-        .querySelectorAll(".cube")
-          .forEach((cube) => {
-            const r = +cube.dataset.row;
-            const c = +cube.dataset.col;
-            const dist = Math.hypot(r - rowHit, c - colHit);
-            const ring = Math.round(dist);
-            if (!rings[ring]) rings[ring] = [];
-            rings[ring].push(cube);
-          });
+      sceneRef.current.querySelectorAll(".cube").forEach((cube) => {
+        const r = +cube.dataset.row;
+        const c = +cube.dataset.col;
+        const dist = Math.hypot(r - rowHit, c - colHit);
+        const ring = Math.round(dist);
+        if (!rings[ring]) rings[ring] = [];
+        rings[ring].push(cube);
+      });
 
       Object.keys(rings)
         .map(Number)
@@ -232,9 +228,9 @@ const Cubes = ({
       shadow === true ? "0 0 6px rgba(0,0,0,.5)" : shadow || "none",
     ...(cubeSize
       ? {
-        width: `${gridSize * cubeSize}px`,
-        height: `${gridSize * cubeSize}px`,
-      }
+          width: `${gridSize * cubeSize}px`,
+          height: `${gridSize * cubeSize}px`,
+        }
       : {}),
   };
 
