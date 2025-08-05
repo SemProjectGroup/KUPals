@@ -30,7 +30,7 @@ const registerForm = () => {
     try {
       await signUp(email, password, firstName, lastName);
       alert("Account created successfully!");
-      router.push("/profile");
+      router.push("/dashboard");
     } catch (error) {
       console.error("Account creation error:", error.message);
       alert("Registration failed: " + error.message);
@@ -41,7 +41,7 @@ const registerForm = () => {
     try {
       await signInWithGoogle();
       alert("Signed in with Google successfully!");
-      router.push("/editProfile");
+      router.push("/dashboard");
     } catch (error) {
       console.error("Google sign-in error:", error.message);
       alert("Google sign-in failed: " + error.message);

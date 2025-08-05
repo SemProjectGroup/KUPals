@@ -28,7 +28,7 @@ const loginForm = () => {
     try {
       await signIn(email, password);
       alert("Signed in successfully!");
-      router.push("/profile");
+      router.push("/dashboard");
     } catch (error) {
       console.error("Email/Password sign-in error:", error.message);
       alert("Login failed: " + error.message);
@@ -39,7 +39,7 @@ const loginForm = () => {
     try {
       await signInWithGoogle();
       alert("Signed in with Google successfully!");
-      router.push("/profile");
+      router.push("/dashboard");
     } catch (error) {
       console.error("Google sign-in error:", error.message);
       alert("Google sign-in failed: " + error.message);

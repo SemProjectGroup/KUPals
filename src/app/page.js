@@ -31,7 +31,7 @@ export default function Home() {
           <p className="text-xl text-gray-200 mb-8 max-w-2xl mx-auto">
             A Web-Based Social Platform for Kathmandu University Students
           </p>
-          <Link href="/create-account">
+          <Link href="/sign-in">
             <button className="py-3 px-8 bg-[#2ACAA8] text-white font-semibold rounded-lg hover:bg-[#23A891] focus:outline-none focus:ring-2 focus:ring-[#3CE6BD] focus:ring-offset-2 focus:ring-offset-[#252F2D] transition duration-300 ease-in-out shadow-lg transform hover:scale-105">
               Join the KU Community Today!
             </button>
